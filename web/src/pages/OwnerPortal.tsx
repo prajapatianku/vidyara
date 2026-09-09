@@ -84,7 +84,8 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
   };
 
   const openWhatsAppReminder = (student: any) => {
-    const message = `Hello ${student.name}, your library fee payment of ₹${student.feeAmount} for ${account.library?.name} is due. Please clear your dues at the earliest. Thank you!`;
+    const libName = (account.library?.name || 'VIDYARA LIBRARY').toUpperCase();
+    const message = `🏛️ *${libName}*\n📢 *FEE PAYMENT REMINDER*\n\nDear ${student.name},\nThis is a friendly reminder that your monthly library fee payment of ₹${student.feeAmount} is due. Please clear your dues at your earliest convenience.\n\nThank you!\n*${account.library?.name} Management*`;
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/91${student.phone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
   };

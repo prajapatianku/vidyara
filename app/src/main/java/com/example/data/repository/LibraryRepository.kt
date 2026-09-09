@@ -1163,6 +1163,38 @@ class LibraryRepository(
         persistCurrentAccount()
     }
 
+    fun deleteShift(shiftId: String): Boolean {
+        val shiftToDelete = _shifts.value.find { it.id == shiftId } ?: return false
+        _shifts.value = _shifts.value.filter { it.id != shiftId }
+        addAuditLog("Shift Deleted", "Shift", "Shift deleted: ${shiftToDelete.name}")
+        persistCurrentAccount()
+        return true
+    }
+
+    fun renameSeat(oldSeatNumber: String, newSeatName: String): Boolean {
+        val trimmed = newSeatName.trim()
+        if (trimmed.isBlank()) return false
+        val currentSeats = _seats.value.toMutableList()
+        val seatIdx = currentSeats.indexOfFirst { it.seatNumber == oldSeatNumber }
+        if (seatIdx != -1) {
+            val oldSeat = currentSeats[seatIdx]
+            currentSeats[seatIdx] = oldSeat.copy(seatNumber = trimmed)
+            _seats.value = currentSeats
+            
+            _students.value = _students.value.map { student ->
+                if (student.assignedSeatNumber == oldSeatNumber) {
+                    student.copy(assignedSeatNumber = trimmed)
+                } else {
+                    student
+                }
+            }
+            addAuditLog("Seat Renamed", "Seat", "Seat '$oldSeatNumber' renamed to '$trimmed'")
+            persistCurrentAccount()
+            return true
+        }
+        return false
+    }
+
     fun createShift(name: String, startTime: String, endTime: String, defaultPrice: Int, capacity: Int = _library.value.totalSeats): Boolean {
         val newShift = Shift(
             libraryId = _library.value.id,

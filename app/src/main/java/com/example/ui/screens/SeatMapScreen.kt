@@ -218,6 +218,9 @@ fun SeatActionDialog(
     var selectedStudentName by remember { mutableStateOf(students.firstOrNull()?.fullName ?: "") }
     var selectedShiftName by remember { mutableStateOf(shifts.firstOrNull() ?: "Full Day") }
 
+    var isEditingLabel by remember { mutableStateOf(false) }
+    var customSeatLabel by remember { mutableStateOf(seat.seatNumber) }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -234,8 +237,41 @@ fun SeatActionDialog(
                         Text(text = "Seat ${seat.seatNumber}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text(text = "Status: ${seat.status.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { isEditingLabel = !isEditingLabel }) {
+                            Icon(imageVector = Icons.Default.Edit, contentDescription = "Edit Seat Label", tint = OrangePrimaryDark)
+                        }
+                        IconButton(onClick = onDismiss) {
+                            Icon(imageVector = Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
+                }
+
+                if (isEditingLabel) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = customSeatLabel,
+                            onValueChange = { customSeatLabel = it },
+                            label = { Text("Custom Seat Name (e.g. A-12, 101, VIP)") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Button(
+                            onClick = {
+                                if (customSeatLabel.isNotBlank() && customSeatLabel != seat.seatNumber) {
+                                    viewModel.renameSeat(seat.seatNumber, customSeatLabel)
+                                    isEditingLabel = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+                        ) {
+                            Text("Save")
+                        }
                     }
                 }
 

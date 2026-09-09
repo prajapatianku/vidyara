@@ -1533,6 +1533,7 @@ fun ShiftManagerDialog(
 
     // Edit shift state
     var editingShiftId by remember { mutableStateOf<String?>(null) }
+    var editName by remember { mutableStateOf("") }
     var editStart by remember { mutableStateOf("") }
     var editEnd by remember { mutableStateOf("") }
     var editPrice by remember { mutableStateOf("") }
@@ -1727,13 +1728,28 @@ fun ShiftManagerDialog(
                             Column(modifier = Modifier.padding(14.dp)) {
                                 if (isEditing) {
                                     Text(
-                                        text = "Editing timings for ${shift.name}",
+                                        text = "Editing Shift: ${shift.name}",
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = OrangePrimaryDark
                                     )
                                     Spacer(modifier = Modifier.height(10.dp))
                                     
+                                    OutlinedTextField(
+                                        value = editName,
+                                        onValueChange = { editName = it },
+                                        label = { Text("Shift Name") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = WarmTextDark,
+                                            unfocusedTextColor = WarmTextDark,
+                                            focusedContainerColor = PureWhite,
+                                            unfocusedContainerColor = PureWhite
+                                        )
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         OutlinedTextField(
                                             value = editStart,
@@ -1789,8 +1805,10 @@ fun ShiftManagerDialog(
                                         Button(
                                             onClick = {
                                                 val priceVal = editPrice.toIntOrNull() ?: shift.defaultPrice
+                                                val nameVal = editName.ifBlank { shift.name }
                                                 viewModel.updateShift(
                                                     shift.copy(
+                                                        name = nameVal,
                                                         startTime = editStart,
                                                         endTime = editEnd,
                                                         defaultPrice = priceVal
@@ -1844,17 +1862,34 @@ fun ShiftManagerDialog(
                                                 style = MaterialTheme.typography.titleMedium
                                             )
                                             Spacer(modifier = Modifier.height(4.dp))
-                                            OutlinedButton(
-                                                onClick = {
-                                                    editingShiftId = shift.id
-                                                    editStart = shift.startTime
-                                                    editEnd = shift.endTime
-                                                    editPrice = shift.defaultPrice.toString()
-                                                },
-                                                shape = RoundedCornerShape(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
-                                            ) {
-                                                Text("Edit", fontSize = 11.sp, color = WarmTextDark)
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        editingShiftId = shift.id
+                                                        editName = shift.name
+                                                        editStart = shift.startTime
+                                                        editEnd = shift.endTime
+                                                        editPrice = shift.defaultPrice.toString()
+                                                    },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                                                ) {
+                                                    Text("Edit", fontSize = 11.sp, color = WarmTextDark)
+                                                }
+
+                                                IconButton(
+                                                    onClick = {
+                                                        viewModel.deleteShift(shift.id)
+                                                    },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = "Delete Shift",
+                                                        tint = DangerRed,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }

@@ -890,9 +890,23 @@ class LibraryViewModel(
         _uiToastMessage.value = "Shift ${shift.name} updated successfully!"
     }
 
+    fun deleteShift(shiftId: String) {
+        val success = repository.deleteShift(shiftId)
+        if (success) {
+            _uiToastMessage.value = "Shift deleted successfully!"
+        }
+    }
+
     fun createShift(name: String, startTime: String, endTime: String, defaultPrice: Int) {
         repository.createShift(name, startTime, endTime, defaultPrice)
         _uiToastMessage.value = "Custom shift $name created successfully!"
+    }
+
+    fun renameSeat(oldSeatNumber: String, newSeatName: String) {
+        val success = repository.renameSeat(oldSeatNumber, newSeatName)
+        if (success) {
+            _uiToastMessage.value = "Seat '$oldSeatNumber' renamed to '$newSeatName'!"
+        }
     }
 
     // Authentication actions
@@ -1093,8 +1107,8 @@ class LibraryViewModel(
 
     fun generateStudentWhatsAppReminderText(student: Student, lib: Library): String {
         val sb = StringBuilder()
-        sb.append("📢 *FEE PAYMENT REMINDER*\n")
-        sb.append("🏛️ *${lib.name}*\n\n")
+        sb.append("🏛️ *${lib.name.uppercase()}*\n")
+        sb.append("📢 *FEE PAYMENT REMINDER*\n\n")
         sb.append("Dear *${student.fullName}*,\n\n")
         sb.append("This is a friendly reminder that your library subscription fee of *₹${student.dueAmount}* is due for payment on *${student.feeDueDate}*.\n\n")
         sb.append("📌 *Student Pass Details:*\n")
