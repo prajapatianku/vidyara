@@ -1114,13 +1114,20 @@ class LibraryRepository(
         persistCurrentAccount()
     }
 
-    fun approveRegistrationRequest(requestId: String) {
-        val request = _registrationRequests.value.find { it.id == requestId } ?: return
+    fun approveRegistrationRequest(
+        requestId: String,
+        customSeatNumber: String = "",
+        customMonthlyFee: Int = 1000
+    ): Student? {
+        val request = _registrationRequests.value.find { it.id == requestId } ?: return null
         _registrationRequests.value = _registrationRequests.value.map {
             if (it.id == requestId) it.copy(status = "approved") else it
         }
 
         val newCode = "STU-" + String.format(Locale.US, "%03d", _students.value.size + 1)
+        val finalSeat = customSeatNumber.ifBlank {
+            if (request.preferredSeat.startsWith("Seat")) request.preferredSeat.removePrefix("Seat ").trim() else request.preferredSeat
+        }
         val student = Student(
             studentCode = newCode,
             fullName = request.studentName,
@@ -1128,13 +1135,17 @@ class LibraryRepository(
             email = request.email,
             course = request.course,
             assignedShiftName = request.requestedShift,
-            assignedSeatNumber = if (request.preferredSeat.startsWith("Seat")) request.preferredSeat.removePrefix("Seat ").trim() else "",
-            monthlyFee = 1000,
-            dueAmount = 1000
+            assignedSeatNumber = finalSeat,
+            monthlyFee = customMonthlyFee,
+            dueAmount = customMonthlyFee
         )
         addStudent(student)
+        if (finalSeat.isNotBlank()) {
+            assignSeatInternal(finalSeat, student.id, student.fullName, student.assignedShiftName)
+        }
         addAuditLog("Registration Approved", "Registration", "Approved ${request.studentName} ($newCode)")
         persistCurrentAccount()
+        return student
     }
 
     fun rejectRegistrationRequest(requestId: String) {

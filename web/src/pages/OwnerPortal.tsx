@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, LayoutGrid, QrCode, CreditCard, Settings, CheckCircle, RefreshCw, Plus, ArrowLeft, LogOut, Phone, Mail, Trash2, Send, MessageSquare } from 'lucide-react';
+import { BookOpen, Users, LayoutGrid, QrCode, CreditCard, Settings, CheckCircle, RefreshCw, Plus, ArrowLeft, LogOut, Phone, Mail, Trash2, Send, MessageSquare, Check, X, Copy, ExternalLink, UserCheck, AlertCircle } from 'lucide-react';
 import { upsertLibraryAccount } from '../services/SupabaseService';
 
 interface OwnerPortalProps {
@@ -10,23 +10,34 @@ interface OwnerPortalProps {
 
 export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout, onBackToMarketing }) => {
   const [account, setAccount] = useState<any>(accountData);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'seats' | 'students' | 'attendance' | 'payments' | 'settings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'seats' | 'students' | 'pending' | 'attendance' | 'payments' | 'settings'>('dashboard');
   const [syncState, setSyncState] = useState<'synced' | 'pending' | 'error'>('synced');
   const [lastSyncedTime, setLastSyncedTime] = useState<string>('Just now');
 
   // Modals & UI Controls
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+
+  // Add Student Form State
   const [newStudentName, setNewStudentName] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
   const [newStudentSeat, setNewStudentSeat] = useState('1');
   const [newStudentShift, setNewStudentShift] = useState('Full Day');
-  const [newStudentFee, setNewStudentFee] = useState('1200');
+  const [newStudentFee, setNewStudentFee] = useState('1000');
+
+  // Approval Modal State
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [approvalSeat, setApprovalSeat] = useState('');
+  const [approvalFee, setApprovalFee] = useState('1000');
 
   useEffect(() => {
     if (accountData) {
       setAccount(accountData);
     }
   }, [accountData]);
+
+  const registrationUrl = `https://vidyara-web-five.vercel.app/#register-student?accId=${account.accountId || 'acc_default'}`;
+  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(registrationUrl)}`;
 
   const handleManualSync = async () => {
     setSyncState('pending');
@@ -70,6 +81,61 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
     await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
   };
 
+  const handleApproveRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRequest) return;
+
+    const seatNum = parseInt(approvalSeat) || (account.students?.length || 0) + 1;
+    const feeNum = parseInt(approvalFee) || 1000;
+
+    const newStudentObj = {
+      id: 'std_' + Date.now(),
+      name: selectedRequest.studentName,
+      phone: selectedRequest.mobile,
+      email: selectedRequest.email || '',
+      course: selectedRequest.course || '',
+      seatNo: seatNum,
+      shift: selectedRequest.requestedShift || 'Full Day',
+      feeAmount: feeNum,
+      dueStatus: 'PAID',
+      joinDate: new Date().toISOString().split('T')[0]
+    };
+
+    const updatedRequests = (account.registrationRequests || []).map((req: any) =>
+      req.id === selectedRequest.id ? { ...req, status: 'approved' } : req
+    );
+
+    const updatedStudents = [...(account.students || []), newStudentObj];
+
+    const updatedAccount = {
+      ...account,
+      registrationRequests: updatedRequests,
+      studentsCount: updatedStudents.length,
+      occupiedSeatsCount: Math.min(account.library?.totalSeats || 60, updatedStudents.length),
+      students: updatedStudents
+    };
+
+    setAccount(updatedAccount);
+    setSelectedRequest(null);
+    await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    if (!confirm('Reject this student registration request?')) return;
+
+    const updatedRequests = (account.registrationRequests || []).map((req: any) =>
+      req.id === requestId ? { ...req, status: 'rejected' } : req
+    );
+
+    const updatedAccount = {
+      ...account,
+      registrationRequests: updatedRequests
+    };
+
+    setAccount(updatedAccount);
+    await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
+  };
+
   const handleDeleteStudent = async (studentId: string) => {
     if (!confirm('Are you sure you want to delete this student from database?')) return;
     const updatedStudents = (account.students || []).filter((s: any) => s.id !== studentId);
@@ -89,6 +155,8 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/91${student.phone.replace(/\D/g, '')}?text=${encoded}`, '_blank');
   };
+
+  const pendingRequests = (account.registrationRequests || []).filter((req: any) => req.status === 'pending');
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC' }}>
@@ -129,6 +197,25 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
 
         {/* Sync Status Badge & Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => setShowQrModal(true)}
+            style={{
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid #6750A4',
+              backgroundColor: '#F3EDF7',
+              color: '#6750A4',
+              fontWeight: 800,
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <QrCode size={16} /> Registration QR
+          </button>
+
           <div style={{
             padding: '6px 12px',
             borderRadius: '20px',
@@ -181,6 +268,16 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
           <button onClick={() => setActiveTab('dashboard')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'dashboard' ? '#F3EDF7' : 'transparent', color: activeTab === 'dashboard' ? '#6750A4' : '#475569', fontWeight: activeTab === 'dashboard' ? 800 : 600, cursor: 'pointer', textAlign: 'left' }}>
             <BookOpen size={20} /> Dashboard
           </button>
+          <button onClick={() => setActiveTab('pending')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'pending' ? '#F3EDF7' : 'transparent', color: activeTab === 'pending' ? '#6750A4' : '#475569', fontWeight: activeTab === 'pending' ? 800 : 600, cursor: 'pointer', textAlign: 'left' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <UserCheck size={20} /> Pending Requests
+            </span>
+            {pendingRequests.length > 0 && (
+              <span style={{ backgroundColor: '#EF4444', color: '#FFFFFF', fontSize: '11px', fontWeight: 900, borderRadius: '10px', padding: '2px 8px' }}>
+                {pendingRequests.length}
+              </span>
+            )}
+          </button>
           <button onClick={() => setActiveTab('seats')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'seats' ? '#F3EDF7' : 'transparent', color: activeTab === 'seats' ? '#6750A4' : '#475569', fontWeight: activeTab === 'seats' ? 800 : 600, cursor: 'pointer', textAlign: 'left' }}>
             <LayoutGrid size={20} /> Visual Seat Map
           </button>
@@ -203,11 +300,26 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
           {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
             <div>
-              <h3 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '24px' }}>Library Owner Dashboard</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '24px', fontWeight: 900 }}>Library Owner Dashboard</h3>
+                <button
+                  onClick={() => setShowQrModal(true)}
+                  style={{ padding: '10px 18px', backgroundColor: '#6750A4', color: '#FFFFFF', borderRadius: '10px', border: 'none', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                  <QrCode size={18} /> Show Registration QR
+                </button>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px', marginBottom: '32px' }}>
                 <div style={{ backgroundColor: '#FFFFFF', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
                   <p style={{ fontSize: '13px', color: '#64748B', fontWeight: 700 }}>Total Registered Students</p>
                   <h4 style={{ fontSize: '32px', fontWeight: 900, color: '#6750A4', marginTop: '8px' }}>{account.students?.length || 0}</h4>
+                </div>
+                <div style={{ backgroundColor: '#FFFFFF', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                  <p style={{ fontSize: '13px', color: '#64748B', fontWeight: 700 }}>Pending Online Registrations</p>
+                  <h4 style={{ fontSize: '32px', fontWeight: 900, color: pendingRequests.length > 0 ? '#EF4444' : '#10B981', marginTop: '8px' }}>
+                    {pendingRequests.length}
+                  </h4>
                 </div>
                 <div style={{ backgroundColor: '#FFFFFF', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
                   <p style={{ fontSize: '13px', color: '#64748B', fontWeight: 700 }}>Seat Occupancy</p>
@@ -215,13 +327,105 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
                     {account.occupiedSeatsCount || 0} / {account.library?.totalSeats || 60}
                   </h4>
                 </div>
-                <div style={{ backgroundColor: '#FFFFFF', padding: '24px', borderRadius: '16px', border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                  <p style={{ fontSize: '13px', color: '#64748B', fontWeight: 700 }}>SaaS Subscription Plan</p>
-                  <h4 style={{ fontSize: '24px', fontWeight: 900, color: '#2563EB', marginTop: '8px' }}>
-                    {account.saasSubscription?.planType || 'FREE'} PLAN
-                  </h4>
-                </div>
               </div>
+
+              {/* Pending Approvals Card on Dashboard */}
+              {pendingRequests.length > 0 && (
+                <div style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '16px', padding: '24px', marginBottom: '32px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#991B1B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertCircle size={20} /> Pending Online Student Registrations ({pendingRequests.length})
+                    </h4>
+                    <button
+                      onClick={() => setActiveTab('pending')}
+                      style={{ padding: '6px 14px', borderRadius: '8px', backgroundColor: '#EF4444', color: '#FFFFFF', border: 'none', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      View All Requests
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {pendingRequests.slice(0, 3).map((req: any) => (
+                      <div key={req.id} style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #FECACA' }}>
+                        <div>
+                          <p style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A', margin: '0 0 4px 0' }}>{req.studentName}</p>
+                          <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>
+                            📞 {req.mobile} • 📚 {req.course} • ⏰ {req.requestedShift}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setApprovalSeat(req.preferredSeat?.replace(/\D/g, '') || '');
+                          }}
+                          style={{ padding: '8px 16px', backgroundColor: '#059669', color: '#FFFFFF', borderRadius: '8px', border: 'none', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Check size={16} /> Review & Approve
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PENDING REQUESTS TAB */}
+          {activeTab === 'pending' && (
+            <div>
+              <h3 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '16px' }}>
+                Pending Student Registrations ({pendingRequests.length})
+              </h3>
+              <p style={{ fontSize: '14px', color: '#64748B', marginBottom: '24px' }}>
+                Students who scanned your Registration QR code and submitted their details online.
+              </p>
+
+              {pendingRequests.length === 0 ? (
+                <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '40px', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                  <UserCheck size={48} color="#94A3B8" style={{ marginBottom: '12px' }} />
+                  <h4 style={{ fontSize: '18px', fontWeight: 800, color: '#334155' }}>No Pending Registration Requests</h4>
+                  <p style={{ fontSize: '14px', color: '#64748B' }}>When students scan your library QR code, their applications will appear here.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px' }}>
+                  {pendingRequests.map((req: any) => (
+                    <div key={req.id} style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', padding: '20px', border: '1px solid #E2E8F0', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div>
+                          <h4 style={{ fontSize: '18px', fontWeight: 900, color: '#0F172A', margin: '0 0 4px 0' }}>{req.studentName}</h4>
+                          <p style={{ fontSize: '13px', color: '#6750A4', fontWeight: 700, margin: 0 }}>📞 {req.mobile}</p>
+                        </div>
+                        <span style={{ backgroundColor: '#FEF3C7', color: '#D97706', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: 800 }}>
+                          PENDING
+                        </span>
+                      </div>
+
+                      <div style={{ backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '10px', marginBottom: '16px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div><strong>Target Exam:</strong> {req.course}</div>
+                        <div><strong>Requested Shift:</strong> {req.requestedShift}</div>
+                        <div><strong>Preferred Seat:</strong> {req.preferredSeat || 'Any Available'}</div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setApprovalSeat(req.preferredSeat?.replace(/\D/g, '') || '');
+                          }}
+                          style={{ flex: 1, padding: '10px', backgroundColor: '#059669', color: '#FFFFFF', borderRadius: '10px', border: 'none', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        >
+                          <Check size={16} /> Approve Admission
+                        </button>
+                        <button
+                          onClick={() => handleRejectRequest(req.id)}
+                          style={{ padding: '10px 14px', backgroundColor: '#FEE2E2', color: '#991B1B', borderRadius: '10px', border: 'none', fontWeight: 800, cursor: 'pointer' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -374,6 +578,108 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
           )}
         </main>
       </div>
+
+      {/* REGISTRATION QR CODE MODAL */}
+      {showQrModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '420px', textAlign: 'center', position: 'relative' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 900, marginBottom: '4px', color: '#0F172A' }}>
+              Student Registration QR Code
+            </h3>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '20px' }}>
+              Students can scan this QR code on their phone to fill self-admission details online.
+            </p>
+
+            <div style={{ padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '2px dashed #6750A4', display: 'inline-block', marginBottom: '20px' }}>
+              <img src={qrImageUrl} alt="Registration QR Code" style={{ width: '220px', height: '220px', display: 'block' }} />
+            </div>
+
+            <div style={{ backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '10px', fontSize: '12px', color: '#475569', wordBreak: 'break-all', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
+              {registrationUrl}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(registrationUrl);
+                  alert('Registration link copied to clipboard!');
+                }}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <Copy size={16} /> Copy Link
+              </button>
+              <button
+                onClick={() => setShowQrModal(false)}
+                style={{ padding: '12px 20px', borderRadius: '10px', border: 'none', backgroundColor: '#6750A4', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* APPROVE ADMISSION MODAL */}
+      {selectedRequest && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '32px', width: '100%', maxWidth: '440px' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: 900, marginBottom: '6px', color: '#0F172A' }}>
+              Approve Student Admission
+            </h3>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '20px' }}>
+              Assign seat number and monthly fee for <strong>{selectedRequest.studentName}</strong>.
+            </p>
+
+            <form onSubmit={handleApproveRequest} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ backgroundColor: '#F3EDF7', padding: '12px', borderRadius: '12px', fontSize: '13px' }}>
+                <p style={{ margin: '0 0 4px 0' }}><strong>Mobile:</strong> {selectedRequest.mobile}</p>
+                <p style={{ margin: '0 0 4px 0' }}><strong>Target Exam:</strong> {selectedRequest.course}</p>
+                <p style={{ margin: 0 }}><strong>Requested Shift:</strong> {selectedRequest.requestedShift}</p>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>Assign Seat Number</label>
+                <input
+                  type="number"
+                  required
+                  value={approvalSeat}
+                  onChange={(e) => setApprovalSeat(e.target.value)}
+                  placeholder="e.g. 15"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, marginBottom: '4px' }}>Monthly Admission Fee (₹)</label>
+                <input
+                  type="number"
+                  required
+                  value={approvalFee}
+                  onChange={(e) => setApprovalFee(e.target.value)}
+                  placeholder="1000"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedRequest(null)}
+                  style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', backgroundColor: '#059669', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  Approve & Save Student
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ADD STUDENT MODAL */}
       {showAddStudentModal && (

@@ -63,6 +63,7 @@ val WarningAmber = Color(0xFFF59E0B)
 val DangerRed = Color(0xFFEF4444)
 val InfoSky = Color(0xFF38BDF8)
 val PurpleAccent = Color(0xFFA855F7)
+val PrimaryViolet = Color(0xFF6750A4)
 
 // Beautiful Gradients
 val VibrantOrangeGradient = Brush.horizontalGradient(

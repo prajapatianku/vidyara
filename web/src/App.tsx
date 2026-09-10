@@ -3,28 +3,44 @@ import { MarketingPages } from './pages/MarketingPages';
 import { AuthPage } from './pages/AuthPage';
 import { OwnerPortal } from './pages/OwnerPortal';
 import { SuperAdminPortal } from './pages/SuperAdminPortal';
+import { StudentRegistrationForm } from './pages/StudentRegistrationForm';
 
 export const App: React.FC = () => {
-  const [view, setView] = useState<'marketing' | 'auth' | 'owner' | 'superadmin'>('marketing');
+  const [view, setView] = useState<'marketing' | 'auth' | 'owner' | 'superadmin' | 'register-student'>('marketing');
   const [marketingRoute, setMarketingRoute] = useState<string>('/');
   const [activeAccount, setActiveAccount] = useState<any>(null);
 
-  // Restore session from localStorage if available
   useEffect(() => {
+    // Check initial hash route
+    const checkHash = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#register-student')) {
+        setView('register-student');
+      }
+    };
+
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+
+    // Restore session from localStorage if available
     try {
-      const savedSession = localStorage.getItem('vidyara_active_session');
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession);
-        if (parsed.type === 'owner' && parsed.account) {
-          setActiveAccount(parsed.account);
-          setView('owner');
-        } else if (parsed.type === 'superadmin') {
-          setView('superadmin');
+      if (!window.location.hash.startsWith('#register-student')) {
+        const savedSession = localStorage.getItem('vidyara_active_session');
+        if (savedSession) {
+          const parsed = JSON.parse(savedSession);
+          if (parsed.type === 'owner' && parsed.account) {
+            setActiveAccount(parsed.account);
+            setView('owner');
+          } else if (parsed.type === 'superadmin') {
+            setView('superadmin');
+          }
         }
       }
     } catch (e) {
       console.error('Failed to load session:', e);
     }
+
+    return () => window.removeEventListener('hashchange', checkHash);
   }, []);
 
   const handleLoginOwnerSuccess = (accountData: any) => {
@@ -46,6 +62,15 @@ export const App: React.FC = () => {
 
   return (
     <div>
+      {view === 'register-student' && (
+        <StudentRegistrationForm
+          onBackToHome={() => {
+            window.location.hash = '';
+            setView('marketing');
+          }}
+        />
+      )}
+
       {view === 'marketing' && (
         <MarketingPages
           currentRoute={marketingRoute}

@@ -31,6 +31,8 @@ import androidx.compose.ui.window.Dialog
 import com.example.data.model.Student
 import com.example.data.model.StudentStatus
 import com.example.data.model.Seat
+import com.example.ui.components.ApproveRegistrationDialog
+import com.example.ui.components.StudentRegistrationQrDialog
 import com.example.ui.components.StatusBadge
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.LibraryViewModel
@@ -46,14 +48,21 @@ fun StudentsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val owner by viewModel.ownerProfile.collectAsState()
+    val library by viewModel.library.collectAsState()
     val students by viewModel.filteredStudents.collectAsState()
     val allStudents by viewModel.students.collectAsState()
+    val requests by viewModel.registrationRequests.collectAsState()
+    val pendingRequests = remember(requests) { requests.filter { it.status == "pending" } }
     val searchQuery by viewModel.studentSearchQuery.collectAsState()
     val statusFilter by viewModel.studentStatusFilter.collectAsState()
     val shiftFilter by viewModel.studentShiftFilter.collectAsState()
     val selectedStudent by viewModel.selectedStudentForDetail.collectAsState()
     val showAddDialog by viewModel.showAddStudentDialog.collectAsState()
     val isHindi by viewModel.isHindi.collectAsState()
+
+    var showRegistrationQrModal by remember { mutableStateOf(false) }
+    var selectedApprovalRequest by remember { mutableStateOf<com.example.data.model.RegistrationRequest?>(null) }
 
     val shiftOptions = listOf("All", "Morning", "Afternoon", "Evening", "Full Day")
     val statusOptions = listOf("All", "Expiring in 3 Days", "Active", "Has Due", "Expired")
@@ -167,7 +176,7 @@ fun StudentsScreen(
                 }
             }
 
-            // Student Count Summary & WhatsApp Alerts Pill
+            // Student Count Summary, QR Button & WhatsApp Alerts Pill
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -182,31 +191,101 @@ fun StudentsScreen(
                     fontWeight = FontWeight.SemiBold
                 )
 
-                val dueCount = remember(allStudents) { allStudents.count { it.dueAmount > 0 } }
-                if (dueCount > 0) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
-                        color = Color(0xFFE8F8EE),
-                        border = BorderStroke(1.dp, Color(0xFF25D366).copy(alpha = 0.5f)),
-                        modifier = Modifier.clickable { viewModel.showWhatsAppReminderDialog(true) }
+                        color = Color(0xFFF3EDF7),
+                        border = BorderStroke(1.dp, PrimaryViolet.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable { showRegistrationQrModal = true }
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Chat,
-                                contentDescription = null,
-                                tint = Color(0xFF128C7E),
+                                imageVector = Icons.Default.QrCode,
+                                contentDescription = "QR Code",
+                                tint = PrimaryViolet,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "$dueCount Dues (WhatsApp)",
+                                text = "QR Form",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF128C7E)
+                                color = PrimaryViolet
                             )
+                        }
+                    }
+
+                    val dueCount = remember(allStudents) { allStudents.count { it.dueAmount > 0 } }
+                    if (dueCount > 0) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFE8F8EE),
+                            border = BorderStroke(1.dp, Color(0xFF25D366).copy(alpha = 0.5f)),
+                            modifier = Modifier.clickable { viewModel.showWhatsAppReminderDialog(true) }
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Chat,
+                                    contentDescription = null,
+                                    tint = Color(0xFF128C7E),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$dueCount Dues",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF128C7E)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Pending Online Registrations Banner
+            if (pendingRequests.isNotEmpty()) {
+                Surface(
+                    color = Color(0xFFFEF2F2),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "📋 Pending Online Registrations (${pendingRequests.size})",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF991B1B)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        pendingRequests.take(2).forEach { req ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = req.studentName, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color(0xFF0F172A))
+                                    Text(text = "📞 ${req.mobile} • ${req.requestedShift}", fontSize = 11.sp, color = Color(0xFF475569))
+                                }
+                                Button(
+                                    onClick = { selectedApprovalRequest = req },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF059669))
+                                ) {
+                                    Text("Approve", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
                 }
@@ -263,6 +342,31 @@ fun StudentsScreen(
                     }
                 }
             }
+        }
+
+        // Student Registration QR Dialog
+        if (showRegistrationQrModal) {
+            StudentRegistrationQrDialog(
+                accountId = owner.id.ifBlank { "acc_default" },
+                libraryName = library.name,
+                onDismiss = { showRegistrationQrModal = false }
+            )
+        }
+
+        // Student Registration Approval Dialog
+        selectedApprovalRequest?.let { req ->
+            ApproveRegistrationDialog(
+                request = req,
+                onApprove = { customSeat, customFee ->
+                    viewModel.approveRequest(context, req.id, customSeat, customFee)
+                    selectedApprovalRequest = null
+                },
+                onReject = {
+                    viewModel.rejectRequest(req.id)
+                    selectedApprovalRequest = null
+                },
+                onDismiss = { selectedApprovalRequest = null }
+            )
         }
     }
 }

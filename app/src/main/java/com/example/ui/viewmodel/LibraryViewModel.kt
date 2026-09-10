@@ -875,9 +875,18 @@ class LibraryViewModel(
         _uiToastMessage.value = "₹$amount expense logged for $title"
     }
 
-    fun approveRequest(requestId: String) {
-        repository.approveRegistrationRequest(requestId)
-        _uiToastMessage.value = "Registration request approved!"
+    fun approveRequest(context: android.content.Context, requestId: String, customSeat: String = "", customFee: Int = 1000) {
+        val approvedStudent = repository.approveRegistrationRequest(requestId, customSeat, customFee)
+        if (approvedStudent != null) {
+            _uiToastMessage.value = "Registration approved for ${approvedStudent.fullName}!"
+            try {
+                val welcomeMsg = generateStudentWelcomeWhatsAppText(approvedStudent, library.value)
+                val targetPhone = approvedStudent.whatsapp.ifBlank { approvedStudent.mobile }
+                launchWhatsApp(context, targetPhone, welcomeMsg)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     fun rejectRequest(requestId: String) {

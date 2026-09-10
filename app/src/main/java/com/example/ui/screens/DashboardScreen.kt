@@ -70,6 +70,8 @@ fun DashboardScreen(
     }
 
     var showNotificationCenter by remember { mutableStateOf(false) }
+    var showRegistrationQrModal by remember { mutableStateOf(false) }
+    var selectedApprovalRequest by remember { mutableStateOf<com.example.data.model.RegistrationRequest?>(null) }
     val pendingDuesStudents = remember(students) { students.filter { it.dueAmount > 0 } }
     val pendingRegistrationRequests = remember(requests) { requests.filter { it.status == "pending" } }
     val unreadNotificationsCount = (if (activeBroadcast != null) 1 else 0) +
@@ -636,10 +638,10 @@ fun DashboardScreen(
                             modifier = Modifier.weight(1f)
                         )
                         QuickActionCard(
-                            title = "Public QR",
-                            icon = Icons.Default.QrCodeScanner,
-                            color = Color(0xFF0747A6),
-                            onClick = { viewModel.showQrDialog(true) },
+                            title = "Register QR",
+                            icon = Icons.Default.QrCode,
+                            color = PrimaryViolet,
+                            onClick = { showRegistrationQrModal = true },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -1106,7 +1108,10 @@ fun DashboardScreen(
                                                     Text("Reject", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                                 }
                                                 Button(
-                                                    onClick = { viewModel.approveRequest(req.id) },
+                                                    onClick = {
+                                                        showNotificationCenter = false
+                                                        selectedApprovalRequest = req
+                                                    },
                                                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                                     shape = RoundedCornerShape(8.dp),
                                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0066FF))
@@ -1180,6 +1185,31 @@ fun DashboardScreen(
                     }
                 }
             }
+        }
+
+        // Student Registration QR Code Dialog
+        if (showRegistrationQrModal) {
+            StudentRegistrationQrDialog(
+                accountId = owner.id.ifBlank { "acc_default" },
+                libraryName = library.name,
+                onDismiss = { showRegistrationQrModal = false }
+            )
+        }
+
+        // Student Registration Approval Dialog
+        selectedApprovalRequest?.let { req ->
+            ApproveRegistrationDialog(
+                request = req,
+                onApprove = { customSeat, customFee ->
+                    viewModel.approveRequest(context, req.id, customSeat, customFee)
+                    selectedApprovalRequest = null
+                },
+                onReject = {
+                    viewModel.rejectRequest(req.id)
+                    selectedApprovalRequest = null
+                },
+                onDismiss = { selectedApprovalRequest = null }
+            )
         }
     }
 }
