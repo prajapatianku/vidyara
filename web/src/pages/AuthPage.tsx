@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, ShieldCheck, ArrowRight, UserPlus, LogIn, Lock, Phone, Mail, Building, MapPin, Layers } from 'lucide-react';
+import { BookOpen, ShieldCheck, ArrowRight, UserPlus, LogIn, Lock, Phone, Mail, Building, MapPin, Layers, RefreshCw } from 'lucide-react';
 import { upsertLibraryAccount, findAccountByPhoneOrEmail, createDefaultAccountData } from '../services/SupabaseService';
 
 interface AuthPageProps {
@@ -38,7 +38,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
     e.preventDefault();
     setErrorMessage('');
     if (!loginIdentifier.trim()) {
-      setErrorMessage('Please enter your mobile phone number or email address');
+      setErrorMessage('Please enter your mobile phone number or email address.');
       return;
     }
 
@@ -52,13 +52,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({
         return;
       }
 
-      // 2. Fallback check local demo fallback
-      const defaultAccount = createDefaultAccountData('Library Owner', loginIdentifier, `${loginIdentifier}@gmail.com`, 'My Study Point', 'Patna', 60);
+      // 2. Fallback local account setup
+      const cleanPhone = loginIdentifier.replace(/\D/g, '');
+      const defaultAccount = createDefaultAccountData('Library Owner', loginIdentifier, `${cleanPhone || 'owner'}@vidyara.app`, 'My Study Point & Library', 'Patna', 60);
       await upsertLibraryAccount(defaultAccount.accountId, defaultAccount);
       onLoginOwnerSuccess(defaultAccount);
     } catch (err) {
       console.error('Login error:', err);
-      setErrorMessage('Failed to sign in. Please try again.');
+      setErrorMessage('Failed to sign in. Please check network connection.');
     } finally {
       setLoading(false);
     }
@@ -79,22 +80,21 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       const newAccount = createDefaultAccountData(
         regFullName.trim(),
         regPhone.trim(),
-        regEmail.trim() || `${regPhone.trim()}@vidyara.app`,
+        regEmail.trim() || `${regPhone.replace(/\D/g, '')}@vidyara.app`,
         regLibraryName.trim(),
         regCity.trim() || 'Patna',
         seatsNum
       );
 
-      // Save to Supabase Cloud Database immediately
-      const cloudResult = await upsertLibraryAccount(newAccount.accountId, newAccount);
-      if (!cloudResult) {
-        console.warn('Cloud sync failed during registration, proceeding with local session');
+      const success = await upsertLibraryAccount(newAccount.accountId, newAccount);
+      if (success) {
+        onLoginOwnerSuccess(newAccount);
+      } else {
+        onLoginOwnerSuccess(newAccount);
       }
-
-      onLoginOwnerSuccess(newAccount);
     } catch (err) {
       console.error('Registration error:', err);
-      setErrorMessage('Registration failed. Please try again.');
+      setErrorMessage('Failed to complete registration. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -113,41 +113,43 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#F3F4F6',
+      backgroundColor: '#F8FAFC',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '24px'
+      padding: '16px 12px',
+      width: '100%',
+      boxSizing: 'border-box'
     }}>
       {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: '28px', cursor: 'pointer' }} onClick={onBackToMarketing}>
+      <div style={{ textAlign: 'center', marginBottom: '20px', cursor: 'pointer' }} onClick={onBackToMarketing}>
         <div style={{
-          width: '56px',
-          height: '56px',
-          borderRadius: '16px',
+          width: '50px',
+          height: '50px',
+          borderRadius: '14px',
           background: 'linear-gradient(135deg, #4F378B 0%, #6750A4 50%, #7F67BE 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#FFFFFF',
-          margin: '0 auto 12px auto',
+          margin: '0 auto 10px auto',
           boxShadow: '0 8px 20px rgba(103, 80, 164, 0.3)'
         }}>
-          <BookOpen size={30} />
+          <BookOpen size={26} />
         </div>
-        <h1 style={{ fontSize: '28px', fontWeight: 900, color: '#1C1B1F', letterSpacing: '-0.5px', marginBottom: '4px' }}>Vidyara</h1>
-        <p style={{ fontSize: '13px', color: '#6750A4', fontWeight: 700, letterSpacing: '0.5px' }}>LIBRARY & STUDY CENTER SAAS</p>
+        <h1 style={{ fontSize: '24px', fontWeight: 900, color: '#1C1B1F', letterSpacing: '-0.5px', marginBottom: '2px' }}>Vidyara</h1>
+        <p style={{ fontSize: '11px', color: '#6750A4', fontWeight: 700, letterSpacing: '0.5px' }}>LIBRARY & STUDY CENTER SAAS</p>
       </div>
 
-      {/* Main Auth Card Container */}
+      {/* Main Auth Card Container - Mobile Optimized */}
       <div style={{
         width: '100%',
-        maxWidth: '480px',
+        maxWidth: '460px',
         backgroundColor: '#FFFFFF',
-        borderRadius: '24px',
-        border: '1px solid #E5E7EB',
-        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01)',
+        borderRadius: '20px',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)',
         overflow: 'hidden'
       }}>
         {/* Top Portal Mode Toggle */}
@@ -156,12 +158,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             onClick={() => setPortalMode('owner')}
             style={{
               flex: 1,
-              padding: '16px',
+              padding: '14px',
               border: 'none',
               backgroundColor: portalMode === 'owner' ? '#FFFFFF' : 'transparent',
               color: portalMode === 'owner' ? '#6750A4' : '#6B7280',
               fontWeight: portalMode === 'owner' ? 800 : 600,
-              fontSize: '14px',
+              fontSize: '13px',
               cursor: 'pointer',
               borderBottom: portalMode === 'owner' ? '3px solid #6750A4' : '3px solid transparent'
             }}
@@ -172,12 +174,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
             onClick={() => setPortalMode('superadmin')}
             style={{
               flex: 1,
-              padding: '16px',
+              padding: '14px',
               border: 'none',
               backgroundColor: portalMode === 'superadmin' ? '#FFFFFF' : 'transparent',
               color: portalMode === 'superadmin' ? '#6750A4' : '#6B7280',
               fontWeight: portalMode === 'superadmin' ? 800 : 600,
-              fontSize: '14px',
+              fontSize: '13px',
               cursor: 'pointer',
               borderBottom: portalMode === 'superadmin' ? '3px solid #6750A4' : '3px solid transparent'
             }}
@@ -186,195 +188,88 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           </button>
         </div>
 
-        <div style={{ padding: '32px' }}>
+        <div style={{ padding: '24px 18px' }}>
           {errorMessage && (
             <div style={{
               backgroundColor: '#FEE2E2',
               color: '#991B1B',
-              padding: '12px 16px',
+              padding: '12px 14px',
               borderRadius: '12px',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 600,
-              marginBottom: '20px'
+              marginBottom: '16px'
             }}>
               {errorMessage}
             </div>
           )}
 
-          {/* LIBRARY OWNER AUTHENTICATION FLOW */}
+          {/* OWNER PORTAL LOGIN / REGISTER */}
           {portalMode === 'owner' && (
             <div>
-              {/* Sub Tabs: Register vs Sign In */}
-              <div style={{
-                display: 'flex',
-                backgroundColor: '#F3F4F6',
-                borderRadius: '12px',
-                padding: '4px',
-                marginBottom: '24px'
-              }}>
+              {/* Tab Selector: Login vs Register */}
+              <div style={{ display: 'flex', backgroundColor: '#F1F5F9', padding: '4px', borderRadius: '12px', marginBottom: '20px' }}>
                 <button
                   onClick={() => setAuthTab('register')}
                   style={{
                     flex: 1,
                     padding: '10px',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     border: 'none',
                     backgroundColor: authTab === 'register' ? '#FFFFFF' : 'transparent',
-                    color: authTab === 'register' ? '#111827' : '#6B7280',
-                    fontWeight: authTab === 'register' ? 700 : 500,
+                    color: authTab === 'register' ? '#6750A4' : '#64748B',
+                    fontWeight: authTab === 'register' ? 800 : 600,
                     fontSize: '13px',
                     cursor: 'pointer',
-                    boxShadow: authTab === 'register' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    boxShadow: authTab === 'register' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
                   }}
                 >
-                  <UserPlus size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                  Register Library
+                  Create New Library
                 </button>
                 <button
                   onClick={() => setAuthTab('login')}
                   style={{
                     flex: 1,
                     padding: '10px',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     border: 'none',
                     backgroundColor: authTab === 'login' ? '#FFFFFF' : 'transparent',
-                    color: authTab === 'login' ? '#111827' : '#6B7280',
-                    fontWeight: authTab === 'login' ? 700 : 500,
+                    color: authTab === 'login' ? '#6750A4' : '#64748B',
+                    fontWeight: authTab === 'login' ? 800 : 600,
                     fontSize: '13px',
                     cursor: 'pointer',
-                    boxShadow: authTab === 'login' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                    boxShadow: authTab === 'login' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none'
                   }}
                 >
-                  <LogIn size={14} style={{ display: 'inline', marginRight: '6px' }} />
-                  Sign In
+                  Existing Owner Login
                 </button>
               </div>
 
-              {/* REGISTRATION FORM */}
+              {/* REGISTER FORM */}
               {authTab === 'register' && (
-                <form onSubmit={handleOwnerRegister} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <form onSubmit={handleOwnerRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                      Owner Full Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Ankit Kumar"
-                      value={regFullName}
-                      onChange={(e) => setRegFullName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: '10px',
-                        border: '1px solid #D1D5DB',
-                        fontSize: '14px',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                        Mobile Phone *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        placeholder="10-digit phone"
-                        value={regPhone}
-                        onChange={(e) => setRegPhone(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid #D1D5DB',
-                          fontSize: '14px',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        placeholder="owner@gmail.com"
-                        value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid #D1D5DB',
-                          fontSize: '14px',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Owner Full Name *</label>
+                    <input type="text" required placeholder="e.g. Ratnesh Ankit" value={regFullName} onChange={(e) => setRegFullName(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                      Library / Study Center Name *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Saraswati Study Point"
-                      value={regLibraryName}
-                      onChange={(e) => setRegLibraryName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: '10px',
-                        border: '1px solid #D1D5DB',
-                        fontSize: '14px',
-                        outline: 'none'
-                      }}
-                    />
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Mobile Phone Number *</label>
+                    <input type="tel" required placeholder="10-digit mobile phone" value={regPhone} onChange={(e) => setRegPhone(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Library / Center Name *</label>
+                    <input type="text" required placeholder="e.g. Saraswati Study Point" value={regLibraryName} onChange={(e) => setRegLibraryName(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                        City
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Patna"
-                        value={regCity}
-                        onChange={(e) => setRegCity(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid #D1D5DB',
-                          fontSize: '14px',
-                          outline: 'none'
-                        }}
-                      />
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>City</label>
+                      <input type="text" placeholder="e.g. Patna" value={regCity} onChange={(e) => setRegCity(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                        Total Seats
-                      </label>
-                      <input
-                        type="number"
-                        placeholder="60"
-                        value={regSeats}
-                        onChange={(e) => setRegSeats(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '12px 14px',
-                          borderRadius: '10px',
-                          border: '1px solid #D1D5DB',
-                          fontSize: '14px',
-                          outline: 'none'
-                        }}
-                      />
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Total Seats</label>
+                      <input type="number" value={regSeats} onChange={(e) => setRegSeats(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
                     </div>
                   </div>
 
@@ -388,62 +283,46 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       border: 'none',
                       backgroundColor: '#6750A4',
                       color: '#FFFFFF',
-                      fontWeight: 800,
                       fontSize: '15px',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(103,80,164,0.3)',
+                      fontWeight: 800,
+                      cursor: loading ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      boxShadow: '0 4px 14px rgba(103,80,164,0.3)',
+                      opacity: loading ? 0.7 : 1
                     }}
                   >
-                    {loading ? 'Creating Library Account...' : 'Register Library Account'} <ArrowRight size={18} />
+                    {loading ? <RefreshCw size={18} className="spin" /> : <UserPlus size={18} />}
+                    {loading ? 'Creating Library Account...' : 'Register Library Account'}
                   </button>
                 </form>
               )}
 
-              {/* SIGN IN FORM */}
+              {/* LOGIN FORM */}
               {authTab === 'login' && (
-                <form onSubmit={handleOwnerLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <form onSubmit={handleOwnerLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                      Registered Mobile Phone or Email
-                    </label>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Registered Mobile or Email *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. 8265159743 or ratneshankit123@gmail.com"
+                      placeholder="Enter mobile phone or email"
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: '10px',
-                        border: '1px solid #D1D5DB',
-                        fontSize: '14px',
-                        outline: 'none'
-                      }}
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                      Password / OTP Code
-                    </label>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Password (Optional)</label>
                     <input
                       type="password"
-                      placeholder="••••••••"
+                      placeholder="Enter password or leave blank for instant login"
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '12px 14px',
-                        borderRadius: '10px',
-                        border: '1px solid #D1D5DB',
-                        fontSize: '14px',
-                        outline: 'none'
-                      }}
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}
                     />
                   </div>
 
@@ -457,91 +336,38 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       border: 'none',
                       backgroundColor: '#6750A4',
                       color: '#FFFFFF',
-                      fontWeight: 800,
                       fontSize: '15px',
-                      cursor: 'pointer',
-                      boxShadow: '0 4px 12px rgba(103,80,164,0.3)',
+                      fontWeight: 800,
+                      cursor: loading ? 'not-allowed' : 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      boxShadow: '0 4px 14px rgba(103,80,164,0.3)',
+                      opacity: loading ? 0.7 : 1
                     }}
                   >
-                    {loading ? 'Signing In...' : 'Sign In to Owner Portal'} <ArrowRight size={18} />
+                    {loading ? <RefreshCw size={18} className="spin" /> : <LogIn size={18} />}
+                    {loading ? 'Signing In...' : 'Sign In to Owner Portal'}
                   </button>
                 </form>
               )}
             </div>
           )}
 
-          {/* SUPER ADMIN AUTHENTICATION FLOW */}
+          {/* SUPER ADMIN LOGIN */}
           {portalMode === 'superadmin' && (
-            <form onSubmit={handleAdminSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                <ShieldCheck size={40} color="#6750A4" style={{ margin: '0 auto 8px auto' }} />
-                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#111827' }}>Super Admin Access</h3>
-                <p style={{ fontSize: '12px', color: '#6B7280' }}>Manage all registered libraries across Vidyara SaaS platform.</p>
-              </div>
-
+            <form onSubmit={handleAdminSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                  Super Admin Email
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid #D1D5DB',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Super Admin Email</label>
+                <input type="email" required value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
               </div>
-
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
-                  Admin Security Passcode / PIN
-                </label>
-                <input
-                  type="password"
-                  placeholder="Enter PIN (e.g. 123456)"
-                  value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid #D1D5DB',
-                    fontSize: '14px',
-                    outline: 'none'
-                  }}
-                />
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '4px' }}>Admin PIN / Key</label>
+                <input type="password" required placeholder="Enter 6-digit admin pin" value={adminPin} onChange={(e) => setAdminPin(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }} />
               </div>
-
-              <button
-                type="submit"
-                style={{
-                  marginTop: '8px',
-                  padding: '14px',
-                  borderRadius: '12px',
-                  border: 'none',
-                  backgroundColor: '#1E1B4B',
-                  color: '#FFFFFF',
-                  fontWeight: 800,
-                  fontSize: '15px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                Open Super Admin Portal <ArrowRight size={18} />
+              <button type="submit" style={{ marginTop: '8px', padding: '14px', borderRadius: '12px', border: 'none', backgroundColor: '#0F172A', color: '#FFFFFF', fontSize: '15px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <ShieldCheck size={18} /> Launch Super Admin Console
               </button>
             </form>
           )}

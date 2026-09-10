@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle2, User, Phone, Mail, Award, Clock, MapPin, Send, AlertCircle, RefreshCw } from 'lucide-react';
+import { BookOpen, CheckCircle2, User, Phone, Mail, Award, Clock, MapPin, Send, AlertCircle, RefreshCw, ChevronLeft } from 'lucide-react';
 import { fetchLibraryAccountById, findAccountByPhoneOrEmail, upsertLibraryAccount } from '../services/SupabaseService';
 
 interface StudentRegistrationFormProps {
@@ -24,14 +24,18 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
   const [preferredSeat, setPreferredSeat] = useState('');
 
   useEffect(() => {
-    // Extract accId robustly from URL href or hash query params
-    const href = window.location.href || '';
-    const match = href.match(/accId=([^&/#]+)/i);
-    let id = match ? decodeURIComponent(match[1]) : '';
+    // Extract accId robustly from URL search parameters, regex match, or hash query
+    const searchParams = new URLSearchParams(window.location.search);
+    let id = searchParams.get('accId') || searchParams.get('id') || '';
 
     if (!id) {
-      const searchParams = new URLSearchParams(window.location.search);
-      id = searchParams.get('accId') || '';
+      const match = window.location.href.match(/accId=([^&/#]+)/i);
+      id = match ? decodeURIComponent(match[1]) : '';
+    }
+
+    if (!id && window.location.hash.includes('?')) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(window.location.hash.indexOf('?')));
+      id = hashParams.get('accId') || hashParams.get('id') || '';
     }
 
     setAccountId(id);
@@ -127,7 +131,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', padding: '20px' }}>
         <div style={{ textAlign: 'center', color: '#6750A4' }}>
           <RefreshCw size={44} className="spin" style={{ marginBottom: '16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#1C1B1F' }}>Opening Registration Portal...</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#1C1B1F' }}>Opening Registration Form...</h3>
           <p style={{ fontSize: '13px', color: '#64748B' }}>Connecting to Library Cloud Database</p>
         </div>
       </div>
@@ -140,22 +144,22 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
   if (submitted) {
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '40px 32px', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0' }}>
-          <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: '#DCFCE7', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
-            <CheckCircle2 size={40} />
+      <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '32px 20px', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0' }}>
+          <div style={{ width: '68px', height: '68px', borderRadius: '50%', backgroundColor: '#DCFCE7', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
+            <CheckCircle2 size={38} />
           </div>
-          <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#0F172A', marginBottom: '8px' }}>Registration Submitted!</h2>
-          <p style={{ fontSize: '15px', color: '#475569', lineHeight: 1.5, marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#0F172A', marginBottom: '8px' }}>Registration Submitted!</h2>
+          <p style={{ fontSize: '14px', color: '#475569', lineHeight: 1.5, marginBottom: '24px' }}>
             Thank you, <strong style={{ color: '#6750A4' }}>{fullName}</strong>! Your admission request has been sent to <strong>{libraryName}</strong>.
           </p>
-          <div style={{ backgroundColor: '#F3EDF7', borderRadius: '16px', padding: '16px', textAlign: 'left', marginBottom: '28px', fontSize: '13px', color: '#49454F' }}>
+          <div style={{ backgroundColor: '#F3EDF7', borderRadius: '16px', padding: '16px', textAlign: 'left', marginBottom: '24px', fontSize: '13px', color: '#49454F' }}>
             <p style={{ margin: '0 0 6px 0', fontWeight: 700 }}>📋 Application Summary:</p>
             <p style={{ margin: '0 0 4px 0' }}>• <strong>Shift:</strong> {shift}</p>
             <p style={{ margin: '0 0 4px 0' }}>• <strong>Preferred Seat:</strong> {preferredSeat || 'Any Available'}</p>
             <p style={{ margin: 0 }}>• <strong>Status:</strong> Pending Admin Approval</p>
           </div>
-          <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '24px' }}>
+          <p style={{ fontSize: '12px', color: '#64748B', marginBottom: '24px' }}>
             You will receive a WhatsApp notification with your Digital Pass once the owner approves your seat.
           </p>
           {onBackToHome && (
@@ -170,39 +174,47 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', paddingBottom: '40px' }}>
-      {/* Top Header Banner */}
-      <header style={{ backgroundColor: '#6750A4', color: '#FFFFFF', padding: '24px 20px', textAlign: 'center' }}>
+      {/* Top Mobile-Friendly Header */}
+      <header style={{ backgroundColor: '#6750A4', color: '#FFFFFF', padding: '20px 16px 36px 16px', textAlign: 'center', position: 'relative' }}>
+        {onBackToHome && (
+          <button
+            onClick={onBackToHome}
+            style={{ position: 'absolute', left: '12px', top: '16px', backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: '#FFFFFF', borderRadius: '8px', padding: '6px 10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+          >
+            <ChevronLeft size={16} /> Home
+          </button>
+        )}
         <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#FFFFFF', color: '#6750A4', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-            <BookOpen size={30} />
+          <div style={{ width: '52px', height: '52px', borderRadius: '16px', backgroundColor: '#FFFFFF', color: '#6750A4', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+            <BookOpen size={28} />
           </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 900, margin: '0 0 4px 0' }}>{libraryName}</h1>
-          <p style={{ fontSize: '13px', color: '#E8DEF8', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <MapPin size={14} /> {libraryCity} {libraryAddress ? `• ${libraryAddress}` : ''}
+          <h1 style={{ fontSize: '22px', fontWeight: 900, margin: '0 0 4px 0', padding: '0 10px' }}>{libraryName}</h1>
+          <p style={{ fontSize: '12px', color: '#E8DEF8', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <MapPin size={13} /> {libraryCity} {libraryAddress ? `• ${libraryAddress}` : ''}
           </p>
         </div>
       </header>
 
-      {/* Form Container Card */}
-      <div style={{ maxWidth: '520px', margin: '-20px auto 0 auto', padding: '0 16px' }}>
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px 24px', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1C1B1F', marginBottom: '6px', textAlign: 'center' }}>
+      {/* Form Container Card - Mobile Optimized */}
+      <div style={{ maxWidth: '480px', margin: '-24px auto 0 auto', padding: '0 12px' }}>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '24px 18px', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#1C1B1F', marginBottom: '4px', textAlign: 'center' }}>
             Student Self Registration Form
           </h2>
-          <p style={{ fontSize: '13px', color: '#64748B', textAlign: 'center', marginBottom: '24px' }}>
+          <p style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', marginBottom: '20px' }}>
             Fill in your details below to request instant admission & seat allocation.
           </p>
 
           {errorMessage && (
-            <div style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '12px 16px', borderRadius: '12px', fontSize: '13px', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={18} /> {errorMessage}
+            <div style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '12px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 700, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={18} style={{ flexShrink: 0 }} /> <span>{errorMessage}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Student Full Name */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                 Full Name <span style={{ color: '#EF4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
@@ -213,14 +225,14 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                   placeholder="Enter your full name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  style={{ width: '100%', padding: '11px 12px 11px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
 
             {/* Mobile Phone */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                 WhatsApp / Mobile Phone <span style={{ color: '#EF4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
@@ -231,14 +243,14 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                   placeholder="10-digit mobile number"
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
-                  style={{ width: '100%', padding: '11px 12px 11px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
 
             {/* Email Address */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                 Email Address (Optional)
               </label>
               <div style={{ position: 'relative' }}>
@@ -248,14 +260,14 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                   placeholder="student@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  style={{ width: '100%', padding: '11px 12px 11px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
             </div>
 
             {/* Target Exam / Course */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                 Target Exam / Course <span style={{ color: '#EF4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
@@ -263,7 +275,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                 <select
                   value={course}
                   onChange={(e) => setCourse(e.target.value)}
-                  style={{ width: '100%', padding: '11px 12px 11px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
                 >
                   <option value="UPSC / Civil Services">UPSC / Civil Services</option>
                   <option value="SSC / State PCS">SSC / State PCS</option>
@@ -279,7 +291,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
             {/* Shift Preference */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                 Shift Preference <span style={{ color: '#EF4444' }}>*</span>
               </label>
               <div style={{ position: 'relative' }}>
@@ -287,7 +299,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                 <select
                   value={shift}
                   onChange={(e) => setShift(e.target.value)}
-                  style={{ width: '100%', padding: '11px 12px 11px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '12px 12px 12px 40px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
                 >
                   <option value="Full Day (24x7)">Full Day (24x7)</option>
                   <option value="Morning Shift (6 AM - 2 PM)">Morning Shift (6 AM - 2 PM)</option>
@@ -299,7 +311,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
             {/* Preferred Seat Number */}
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                 Preferred Seat Number (Optional)
               </label>
               <input
@@ -307,7 +319,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                 placeholder="e.g. 12 or leave empty for auto-assign"
                 value={preferredSeat}
                 onChange={(e) => setPreferredSeat(e.target.value)}
-                style={{ width: '100%', padding: '11px 12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '16px', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
@@ -316,7 +328,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
               type="submit"
               disabled={submitting}
               style={{
-                marginTop: '8px',
+                marginTop: '6px',
                 width: '100%',
                 padding: '14px',
                 borderRadius: '12px',
@@ -334,7 +346,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
                 opacity: submitting ? 0.7 : 1
               }}
             >
-              <Send size={18} /> {submitting ? 'Submitting Registration...' : 'Submit Registration Request'}
+              <Send size={18} /> {submitting ? 'Submitting Application...' : 'Submit Registration Request'}
             </button>
           </form>
         </div>

@@ -6,11 +6,20 @@ import { SuperAdminPortal } from './pages/SuperAdminPortal';
 import { StudentRegistrationForm } from './pages/StudentRegistrationForm';
 
 export const App: React.FC = () => {
-  // Initialize view state immediately on first render based on location
+  // Initialize view state immediately on first render based on URL search / hash / pathname
   const [view, setView] = useState<'marketing' | 'auth' | 'owner' | 'superadmin' | 'register-student'>(() => {
+    const search = window.location.search || '';
     const hash = window.location.hash || '';
     const href = window.location.href || '';
-    if (hash.includes('register-student') || href.includes('register-student')) {
+    const pathname = window.location.pathname || '';
+
+    if (
+      search.includes('register') ||
+      search.includes('accId') ||
+      hash.includes('register') ||
+      href.includes('register') ||
+      pathname.includes('register')
+    ) {
       return 'register-student';
     }
     return 'marketing';
@@ -20,23 +29,39 @@ export const App: React.FC = () => {
   const [activeAccount, setActiveAccount] = useState<any>(null);
 
   useEffect(() => {
-    // Check hash route changes dynamically
-    const checkHash = () => {
+    // Check route changes dynamically for camera QR scans and link clicks
+    const checkRoute = () => {
+      const search = window.location.search || '';
       const hash = window.location.hash || '';
       const href = window.location.href || '';
-      if (hash.includes('register-student') || href.includes('register-student')) {
+      const pathname = window.location.pathname || '';
+
+      if (
+        search.includes('register') ||
+        search.includes('accId') ||
+        hash.includes('register') ||
+        href.includes('register') ||
+        pathname.includes('register')
+      ) {
         setView('register-student');
       }
     };
 
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
+    checkRoute();
+    window.addEventListener('hashchange', checkRoute);
+    window.addEventListener('popstate', checkRoute);
 
     // Restore session from localStorage if available (unless on register-student form)
     try {
+      const search = window.location.search || '';
       const hash = window.location.hash || '';
       const href = window.location.href || '';
-      if (!hash.includes('register-student') && !href.includes('register-student')) {
+      if (
+        !search.includes('register') &&
+        !search.includes('accId') &&
+        !hash.includes('register') &&
+        !href.includes('register')
+      ) {
         const savedSession = localStorage.getItem('vidyara_active_session');
         if (savedSession) {
           const parsed = JSON.parse(savedSession);
@@ -52,7 +77,10 @@ export const App: React.FC = () => {
       console.error('Failed to load session:', e);
     }
 
-    return () => window.removeEventListener('hashchange', checkHash);
+    return () => {
+      window.removeEventListener('hashchange', checkRoute);
+      window.removeEventListener('popstate', checkRoute);
+    };
   }, []);
 
   const handleLoginOwnerSuccess = (accountData: any) => {
@@ -73,11 +101,14 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div>
+    <div style={{ width: '100%', minHeight: '100vh', overflowX: 'hidden' }}>
       {view === 'register-student' && (
         <StudentRegistrationForm
           onBackToHome={() => {
             window.location.hash = '';
+            if (window.history.pushState) {
+              window.history.pushState('', document.title, window.location.pathname);
+            }
             setView('marketing');
           }}
         />
