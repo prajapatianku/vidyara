@@ -1,75 +1,121 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MarketingPages } from './pages/MarketingPages';
 import { AuthPage } from './pages/AuthPage';
 import { OwnerPortal } from './pages/OwnerPortal';
 import { SuperAdminPortal } from './pages/SuperAdminPortal';
 import { StudentRegistrationForm } from './pages/StudentRegistrationForm';
 
+export type ViewType = 'marketing' | 'auth' | 'owner' | 'superadmin' | 'register-student';
+
+export const parseLocation = (): { view: ViewType; route: string } => {
+  const search = window.location.search || '';
+  const hash = window.location.hash || '';
+  const pathname = window.location.pathname || '';
+
+  if (
+    search.includes('register') ||
+    search.includes('accId') ||
+    hash.includes('register') ||
+    pathname.includes('register')
+  ) {
+    return { view: 'register-student', route: '/' };
+  }
+  if (hash === '#auth' || hash === '#login' || pathname.endsWith('/auth') || pathname.endsWith('/login')) {
+    return { view: 'auth', route: '/' };
+  }
+  if (hash === '#owner' || pathname.endsWith('/owner')) {
+    return { view: 'owner', route: '/' };
+  }
+  if (hash === '#superadmin' || pathname.endsWith('/superadmin')) {
+    return { view: 'superadmin', route: '/' };
+  }
+  if (hash === '#features' || pathname.endsWith('/features')) {
+    return { view: 'marketing', route: '/features' };
+  }
+  if (hash === '#pricing' || pathname.endsWith('/pricing')) {
+    return { view: 'marketing', route: '/pricing' };
+  }
+  if (hash === '#how-it-works' || pathname.endsWith('/how-it-works')) {
+    return { view: 'marketing', route: '/how-it-works' };
+  }
+  if (hash === '#terms' || pathname.endsWith('/terms')) {
+    return { view: 'marketing', route: '/terms' };
+  }
+  return { view: 'marketing', route: '/' };
+};
+
 export const App: React.FC = () => {
-  // Initialize view state immediately on first render based on URL search / hash / pathname
-  const [view, setView] = useState<'marketing' | 'auth' | 'owner' | 'superadmin' | 'register-student'>(() => {
-    const search = window.location.search || '';
-    const hash = window.location.hash || '';
-    const href = window.location.href || '';
-    const pathname = window.location.pathname || '';
-
-    if (
-      search.includes('register') ||
-      search.includes('accId') ||
-      hash.includes('register') ||
-      href.includes('register') ||
-      pathname.includes('register')
-    ) {
-      return 'register-student';
-    }
-    return 'marketing';
-  });
-
-  const [marketingRoute, setMarketingRoute] = useState<string>('/');
+  const initial = parseLocation();
+  const [view, setView] = useState<ViewType>(initial.view);
+  const [marketingRoute, setMarketingRoute] = useState<string>(initial.route);
   const [activeAccount, setActiveAccount] = useState<any>(null);
 
-  useEffect(() => {
-    // Check route changes dynamically for camera QR scans and link clicks
-    const checkRoute = () => {
-      const search = window.location.search || '';
-      const hash = window.location.hash || '';
-      const href = window.location.href || '';
-      const pathname = window.location.pathname || '';
+  // Centralized navigation helper that updates browser history so Back/Forward buttons work cleanly
+  const navigateTo = useCallback((newView: ViewType, newRoute: string = '/', pushHistory: boolean = true) => {
+    setView(newView);
+    setMarketingRoute(newRoute);
 
-      if (
-        search.includes('register') ||
-        search.includes('accId') ||
-        hash.includes('register') ||
-        href.includes('register') ||
-        pathname.includes('register')
-      ) {
-        setView('register-student');
+    if (pushHistory) {
+      let targetHash = '#home';
+      if (newView === 'auth') targetHash = '#auth';
+      else if (newView === 'owner') targetHash = '#owner';
+      else if (newView === 'superadmin') targetHash = '#superadmin';
+      else if (newView === 'register-student') {
+        const search = window.location.search || '';
+        targetHash = search.includes('register') ? window.location.search : '#register-student';
+      } else if (newView === 'marketing') {
+        if (newRoute === '/features') targetHash = '#features';
+        else if (newRoute === '/pricing') targetHash = '#pricing';
+        else if (newRoute === '/how-it-works') targetHash = '#how-it-works';
+        else if (newRoute === '/terms') targetHash = '#terms';
+        else targetHash = '#home';
       }
+
+      if (window.location.hash !== targetHash) {
+        window.history.pushState({ view: newView, route: newRoute }, '', targetHash);
+      }
+    }
+  }, []);
+
+  const handleGoBack = useCallback(() => {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigateTo('marketing', '/', true);
+    }
+  }, [navigateTo]);
+
+  useEffect(() => {
+    const syncRouteFromUrl = () => {
+      const parsed = parseLocation();
+      setView(parsed.view);
+      setMarketingRoute(parsed.route);
     };
 
-    checkRoute();
-    window.addEventListener('hashchange', checkRoute);
-    window.addEventListener('popstate', checkRoute);
+    window.addEventListener('popstate', syncRouteFromUrl);
+    window.addEventListener('hashchange', syncRouteFromUrl);
 
     // Restore session from localStorage if available (unless on register-student form)
     try {
       const search = window.location.search || '';
       const hash = window.location.hash || '';
-      const href = window.location.href || '';
       if (
         !search.includes('register') &&
         !search.includes('accId') &&
-        !hash.includes('register') &&
-        !href.includes('register')
+        !hash.includes('register')
       ) {
         const savedSession = localStorage.getItem('vidyara_active_session');
         if (savedSession) {
           const parsed = JSON.parse(savedSession);
           if (parsed.type === 'owner' && parsed.account) {
             setActiveAccount(parsed.account);
-            setView('owner');
+            if (!hash || hash === '#home') {
+              setView('owner');
+            }
           } else if (parsed.type === 'superadmin') {
-            setView('superadmin');
+            if (!hash || hash === '#home') {
+              setView('superadmin');
+            }
           }
         }
       }
@@ -78,48 +124,42 @@ export const App: React.FC = () => {
     }
 
     return () => {
-      window.removeEventListener('hashchange', checkRoute);
-      window.removeEventListener('popstate', checkRoute);
+      window.removeEventListener('popstate', syncRouteFromUrl);
+      window.removeEventListener('hashchange', syncRouteFromUrl);
     };
   }, []);
 
   const handleLoginOwnerSuccess = (accountData: any) => {
     setActiveAccount(accountData);
     localStorage.setItem('vidyara_active_session', JSON.stringify({ type: 'owner', account: accountData }));
-    setView('owner');
+    navigateTo('owner', '/', true);
   };
 
   const handleLoginSuperAdminSuccess = () => {
     localStorage.setItem('vidyara_active_session', JSON.stringify({ type: 'superadmin' }));
-    setView('superadmin');
+    navigateTo('superadmin', '/', true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('vidyara_active_session');
     setActiveAccount(null);
-    setView('auth');
+    navigateTo('auth', '/', true);
   };
 
   return (
     <div style={{ width: '100%', minHeight: '100vh', overflowX: 'hidden' }}>
       {view === 'register-student' && (
         <StudentRegistrationForm
-          onBackToHome={() => {
-            window.location.hash = '';
-            if (window.history.pushState) {
-              window.history.pushState('', document.title, window.location.pathname);
-            }
-            setView('marketing');
-          }}
+          onBackToHome={() => handleGoBack()}
         />
       )}
 
       {view === 'marketing' && (
         <MarketingPages
           currentRoute={marketingRoute}
-          onNavigate={(route) => setMarketingRoute(route)}
-          onLaunchOwnerPortal={() => setView('auth')}
-          onLaunchSuperAdmin={() => setView('auth')}
+          onNavigate={(route) => navigateTo('marketing', route, true)}
+          onLaunchOwnerPortal={() => navigateTo('auth', '/', true)}
+          onLaunchSuperAdmin={() => navigateTo('auth', '/', true)}
         />
       )}
 
@@ -127,7 +167,7 @@ export const App: React.FC = () => {
         <AuthPage
           onLoginOwnerSuccess={handleLoginOwnerSuccess}
           onLoginSuperAdminSuccess={handleLoginSuperAdminSuccess}
-          onBackToMarketing={() => setView('marketing')}
+          onBackToMarketing={() => handleGoBack()}
         />
       )}
 
@@ -135,14 +175,14 @@ export const App: React.FC = () => {
         <OwnerPortal
           accountData={activeAccount}
           onLogout={handleLogout}
-          onBackToMarketing={() => setView('marketing')}
+          onBackToMarketing={() => navigateTo('marketing', '/', true)}
         />
       )}
 
       {view === 'superadmin' && (
         <SuperAdminPortal
           onLogout={handleLogout}
-          onBackToMarketing={() => setView('marketing')}
+          onBackToMarketing={() => navigateTo('marketing', '/', true)}
         />
       )}
     </div>

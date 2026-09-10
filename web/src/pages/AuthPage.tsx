@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, ShieldCheck, ArrowRight, UserPlus, LogIn, Lock, Phone, Mail, Building, MapPin, Layers, RefreshCw } from 'lucide-react';
+import { BookOpen, ShieldCheck, ArrowRight, UserPlus, LogIn, Lock, Phone, Mail, Building, MapPin, Layers, RefreshCw, ChevronLeft } from 'lucide-react';
 import { upsertLibraryAccount, findAccountByPhoneOrEmail, createDefaultAccountData } from '../services/SupabaseService';
 
 interface AuthPageProps {
@@ -120,10 +120,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       justifyContent: 'center',
       padding: '16px 12px',
       width: '100%',
-      boxSizing: 'border-box'
+      boxSizing: 'border-box',
+      position: 'relative'
     }}>
+      {/* Top Back to Home Button */}
+      <button
+        onClick={onBackToMarketing}
+        style={{
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '8px 14px',
+          borderRadius: '10px',
+          border: '1px solid #CBD5E1',
+          backgroundColor: '#FFFFFF',
+          color: '#334155',
+          fontSize: '13px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+          zIndex: 10
+        }}
+      >
+        <ChevronLeft size={18} /> Back to Home
+      </button>
+
       {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: '20px', cursor: 'pointer' }} onClick={onBackToMarketing}>
+      <div style={{ textAlign: 'center', marginBottom: '20px', marginTop: '40px', cursor: 'pointer' }} onClick={onBackToMarketing}>
         <div style={{
           width: '50px',
           height: '50px',
