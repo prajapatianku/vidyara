@@ -84,7 +84,6 @@ class LibraryAccountStorage(private val context: Context? = null) {
 
             prefs?.edit()
                 ?.putString(KEY_ACCOUNTS_MAP, rootObj.toString())
-                ?.putString(KEY_LAST_LOGGED_IN_ID, account.accountId)
                 ?.apply()
         } catch (e: Exception) {
             e.printStackTrace()

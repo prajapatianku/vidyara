@@ -6,15 +6,25 @@ import { SuperAdminPortal } from './pages/SuperAdminPortal';
 import { StudentRegistrationForm } from './pages/StudentRegistrationForm';
 
 export const App: React.FC = () => {
-  const [view, setView] = useState<'marketing' | 'auth' | 'owner' | 'superadmin' | 'register-student'>('marketing');
+  // Initialize view state immediately on first render based on location
+  const [view, setView] = useState<'marketing' | 'auth' | 'owner' | 'superadmin' | 'register-student'>(() => {
+    const hash = window.location.hash || '';
+    const href = window.location.href || '';
+    if (hash.includes('register-student') || href.includes('register-student')) {
+      return 'register-student';
+    }
+    return 'marketing';
+  });
+
   const [marketingRoute, setMarketingRoute] = useState<string>('/');
   const [activeAccount, setActiveAccount] = useState<any>(null);
 
   useEffect(() => {
-    // Check initial hash route
+    // Check hash route changes dynamically
     const checkHash = () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#register-student')) {
+      const hash = window.location.hash || '';
+      const href = window.location.href || '';
+      if (hash.includes('register-student') || href.includes('register-student')) {
         setView('register-student');
       }
     };
@@ -22,9 +32,11 @@ export const App: React.FC = () => {
     checkHash();
     window.addEventListener('hashchange', checkHash);
 
-    // Restore session from localStorage if available
+    // Restore session from localStorage if available (unless on register-student form)
     try {
-      if (!window.location.hash.startsWith('#register-student')) {
+      const hash = window.location.hash || '';
+      const href = window.location.href || '';
+      if (!hash.includes('register-student') && !href.includes('register-student')) {
         const savedSession = localStorage.getItem('vidyara_active_session');
         if (savedSession) {
           const parsed = JSON.parse(savedSession);

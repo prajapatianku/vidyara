@@ -105,12 +105,14 @@ class LibraryRepository(
         val account = storage.findAccount(emailOrPhone)
         if (account != null) {
             loadAccountState(account)
+            storage.setLastLoggedInAccountId(account.accountId)
         } else {
             _ownerProfile.value = _ownerProfile.value.copy(
                 fullName = if (name.isNotBlank()) name else _ownerProfile.value.fullName,
                 email = if (emailOrPhone.contains("@")) emailOrPhone else _ownerProfile.value.email,
                 phone = if (!emailOrPhone.contains("@") && emailOrPhone.isNotBlank()) emailOrPhone else _ownerProfile.value.phone
             )
+            storage.setLastLoggedInAccountId(_ownerProfile.value.id)
         }
         _isLoggedIn.value = true
         addAuditLog("Admin Logged In", "Auth", "Owner (${_ownerProfile.value.fullName}) logged in successfully")
@@ -584,6 +586,7 @@ class LibraryRepository(
 
         // Save to persistent storage and update reactive StateFlows
         storage.saveAccount(newAccount)
+        storage.setLastLoggedInAccountId(newAccount.accountId)
         loadAccountState(newAccount)
         persistCurrentAccount()
 

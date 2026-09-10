@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle2, User, Phone, Mail, Award, Clock, MapPin, Send, AlertCircle } from 'lucide-react';
-import { fetchLibraryAccountById, upsertLibraryAccount } from '../services/SupabaseService';
+import { BookOpen, CheckCircle2, User, Phone, Mail, Award, Clock, MapPin, Send, AlertCircle, RefreshCw } from 'lucide-react';
+import { fetchLibraryAccountById, findAccountByPhoneOrEmail, upsertLibraryAccount } from '../services/SupabaseService';
 
 interface StudentRegistrationFormProps {
   onBackToHome?: () => void;
@@ -24,14 +24,11 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
   const [preferredSeat, setPreferredSeat] = useState('');
 
   useEffect(() => {
-    // Parse accId from window location hash or query string
-    let id = '';
-    const hash = window.location.hash;
-    if (hash.includes('?')) {
-      const queryStr = hash.substring(hash.indexOf('?'));
-      const params = new URLSearchParams(queryStr);
-      id = params.get('accId') || '';
-    }
+    // Extract accId robustly from URL href or hash query params
+    const href = window.location.href || '';
+    const match = href.match(/accId=([^&/#]+)/i);
+    let id = match ? decodeURIComponent(match[1]) : '';
+
     if (!id) {
       const searchParams = new URLSearchParams(window.location.search);
       id = searchParams.get('accId') || '';
@@ -45,14 +42,18 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
         return;
       }
       try {
-        const record = await fetchLibraryAccountById(id);
+        let record = await fetchLibraryAccountById(id);
+        if (!record) {
+          record = await findAccountByPhoneOrEmail(id);
+        }
+
         if (record && record.data) {
           setAccountRecord(record);
           const parsed = typeof record.data === 'string' ? JSON.parse(record.data) : record.data;
           setLibraryData(parsed);
         }
       } catch (err) {
-        console.error('Failed to load library account:', err);
+        console.error('Failed to load library account details:', err);
       } finally {
         setLoading(false);
       }
@@ -64,10 +65,11 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName.trim() || !mobile.trim()) {
-      setErrorMessage('Please fill in your name and mobile number.');
+      setErrorMessage('Please enter your full name and mobile number.');
       return;
     }
-    if (mobile.replace(/\D/g, '').length < 10) {
+    const cleanMobile = mobile.replace(/\D/g, '');
+    if (cleanMobile.length < 10) {
       setErrorMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
@@ -85,7 +87,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
       const newRequest = {
         id: 'req_' + Date.now(),
         studentName: fullName.trim(),
-        mobile: mobile.trim(),
+        mobile: cleanMobile,
         email: email.trim(),
         course: course.trim(),
         requestedShift: shift,
@@ -94,18 +96,23 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
         status: 'pending'
       };
 
+      const targetId = accountId || parsedData.accountId || 'acc_' + cleanMobile;
+
       const updatedAccount = {
+        accountId: targetId,
+        library: parsedData.library || { name: 'Vidyara Library & Study Center', city: 'Study Center', address: 'Main Branch' },
+        ownerProfile: parsedData.ownerProfile || { fullName: 'Library Admin', phone: cleanMobile },
+        students: parsedData.students || [],
         ...parsedData,
         registrationRequests: [newRequest, ...existingRequests]
       };
 
-      const targetId = accountId || parsedData.accountId || 'acc_default';
       const success = await upsertLibraryAccount(targetId, updatedAccount);
 
       if (success) {
         setSubmitted(true);
       } else {
-        setErrorMessage('Failed to submit registration. Please check internet connection and try again.');
+        setErrorMessage('Could not connect to cloud server. Please verify your internet connection and try again.');
       }
     } catch (err) {
       console.error('Submission error:', err);
@@ -117,10 +124,11 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC', padding: '20px' }}>
         <div style={{ textAlign: 'center', color: '#6750A4' }}>
-          <BookOpen size={48} className="spin" style={{ marginBottom: '16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 800 }}>Loading Registration Portal...</h3>
+          <RefreshCw size={44} className="spin" style={{ marginBottom: '16px' }} />
+          <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#1C1B1F' }}>Opening Registration Portal...</h3>
+          <p style={{ fontSize: '13px', color: '#64748B' }}>Connecting to Library Cloud Database</p>
         </div>
       </div>
     );
@@ -133,7 +141,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
   if (submitted) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '40px 32px', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', border: '1px solid #E2E8F0' }}>
+        <div style={{ backgroundColor: '#FFFFFF', borderRadius: '24px', padding: '40px 32px', maxWidth: '480px', width: '100%', textAlign: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0' }}>
           <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: '#DCFCE7', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
             <CheckCircle2 size={40} />
           </div>
@@ -162,7 +170,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC', paddingBottom: '40px' }}>
-      {/* Top Banner */}
+      {/* Top Header Banner */}
       <header style={{ backgroundColor: '#6750A4', color: '#FFFFFF', padding: '24px 20px', textAlign: 'center' }}>
         <div style={{ maxWidth: '600px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: '#FFFFFF', color: '#6750A4', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
@@ -175,7 +183,7 @@ export const StudentRegistrationForm: React.FC<StudentRegistrationFormProps> = (
         </div>
       </header>
 
-      {/* Form Container */}
+      {/* Form Container Card */}
       <div style={{ maxWidth: '520px', margin: '-20px auto 0 auto', padding: '0 16px' }}>
         <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', padding: '28px 24px', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #E2E8F0' }}>
           <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1C1B1F', marginBottom: '6px', textAlign: 'center' }}>

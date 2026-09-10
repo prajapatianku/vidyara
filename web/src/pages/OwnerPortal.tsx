@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, LayoutGrid, QrCode, CreditCard, Settings, CheckCircle, RefreshCw, Plus, ArrowLeft, LogOut, Phone, Mail, Trash2, Send, MessageSquare, Check, X, Copy, ExternalLink, UserCheck, AlertCircle } from 'lucide-react';
+import { BookOpen, Users, LayoutGrid, QrCode, CreditCard, Settings, CheckCircle, RefreshCw, Plus, ArrowLeft, LogOut, Phone, Mail, Trash2, Send, MessageSquare, Check, X, Copy, ExternalLink, UserCheck, AlertCircle, Printer } from 'lucide-react';
 import { upsertLibraryAccount } from '../services/SupabaseService';
 
 interface OwnerPortalProps {
@@ -36,12 +36,14 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
     }
   }, [accountData]);
 
-  const registrationUrl = `https://vidyara-web-five.vercel.app/#register-student?accId=${account.accountId || 'acc_default'}`;
-  const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(registrationUrl)}`;
+  const accTargetId = account?.accountId || account?.id || account?.ownerProfile?.phone || account?.phone || 'acc_default';
+  const registrationUrl = `${window.location.origin}/#register-student?accId=${accTargetId}`;
+  const primaryQrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(registrationUrl)}`;
+  const fallbackQrImageUrl = `https://quickchart.io/qr?size=300&text=${encodeURIComponent(registrationUrl)}`;
 
   const handleManualSync = async () => {
     setSyncState('pending');
-    const success = await upsertLibraryAccount(account.accountId, account);
+    const success = await upsertLibraryAccount(account.accountId || accTargetId, account);
     if (success) {
       setSyncState('synced');
       setLastSyncedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
@@ -78,7 +80,7 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
     setShowAddStudentModal(false);
     setNewStudentName('');
     setNewStudentPhone('');
-    await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
+    await upsertLibraryAccount(accTargetId, updatedAccount);
   };
 
   const handleApproveRequest = async (e: React.FormEvent) => {
@@ -117,7 +119,7 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
 
     setAccount(updatedAccount);
     setSelectedRequest(null);
-    await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
+    await upsertLibraryAccount(accTargetId, updatedAccount);
   };
 
   const handleRejectRequest = async (requestId: string) => {
@@ -133,7 +135,7 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
     };
 
     setAccount(updatedAccount);
-    await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
+    await upsertLibraryAccount(accTargetId, updatedAccount);
   };
 
   const handleDeleteStudent = async (studentId: string) => {
@@ -146,7 +148,7 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
       students: updatedStudents
     };
     setAccount(updatedAccount);
-    await upsertLibraryAccount(updatedAccount.accountId, updatedAccount);
+    await upsertLibraryAccount(accTargetId, updatedAccount);
   };
 
   const openWhatsAppReminder = (student: any) => {
@@ -285,7 +287,7 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
             <Users size={20} /> Students Directory
           </button>
           <button onClick={() => setActiveTab('attendance')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'attendance' ? '#F3EDF7' : 'transparent', color: activeTab === 'attendance' ? '#6750A4' : '#475569', fontWeight: activeTab === 'attendance' ? 800 : 600, cursor: 'pointer', textAlign: 'left' }}>
-            <QrCode size={20} /> Live Attendance QR
+            <QrCode size={20} /> Admission & Attendance QR
           </button>
           <button onClick={() => setActiveTab('payments')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', borderRadius: '10px', border: 'none', backgroundColor: activeTab === 'payments' ? '#F3EDF7' : 'transparent', color: activeTab === 'payments' ? '#6750A4' : '#475569', fontWeight: activeTab === 'payments' ? 800 : 600, cursor: 'pointer', textAlign: 'left' }}>
             <CreditCard size={20} /> Dues & Payments
@@ -537,19 +539,60 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
             </div>
           )}
 
-          {/* ATTENDANCE QR TAB */}
+          {/* ATTENDANCE & ADMISSION QR TAB */}
           {activeTab === 'attendance' && (
             <div>
-              <h3 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '16px' }}>Live Attendance & QR Identity Scanner</h3>
-              <div style={{ backgroundColor: '#FFFFFF', padding: '40px', borderRadius: '20px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                <QrCode size={72} color="#6750A4" style={{ margin: '0 auto 16px auto' }} />
-                <h4 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>Student QR Scanner Ready</h4>
-                <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '420px', margin: '0 auto 24px auto' }}>
-                  Point your smartphone or web camera at the student ID card to auto-register entry/exit timestamps.
-                </p>
-                <button style={{ padding: '14px 28px', backgroundColor: '#6750A4', color: '#FFFFFF', borderRadius: '12px', border: 'none', fontWeight: 800, cursor: 'pointer' }}>
-                  Start Live Scanner
-                </button>
+              <h3 style={{ fontSize: '24px', fontWeight: 900, marginBottom: '20px' }}>Student Admission QR & Live Scanner</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '24px' }}>
+                {/* Admission QR Poster Card */}
+                <div style={{ backgroundColor: '#FFFFFF', padding: '32px', borderRadius: '24px', border: '1px solid #E2E8F0', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.02)' }}>
+                  <h4 style={{ fontSize: '18px', fontWeight: 900, color: '#0F172A', marginBottom: '4px' }}>
+                    {account.library?.name || 'Vidyara Library'} Registration QR
+                  </h4>
+                  <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '20px' }}>
+                    Display or print this QR code at your reception for instant student self-admission.
+                  </p>
+                  <div style={{ padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '2px dashed #6750A4', display: 'inline-block', marginBottom: '20px' }}>
+                    <img
+                      src={primaryQrImageUrl}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackQrImageUrl; }}
+                      alt="Student Registration QR Code"
+                      style={{ width: '220px', height: '220px', display: 'block' }}
+                    />
+                  </div>
+                  <div style={{ backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '10px', fontSize: '12px', color: '#475569', wordBreak: 'break-all', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
+                    {registrationUrl}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(registrationUrl);
+                        alert('Registration link copied to clipboard!');
+                      }}
+                      style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid #CBD5E1', backgroundColor: '#FFFFFF', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                    >
+                      <Copy size={16} /> Copy Link
+                    </button>
+                    <button
+                      onClick={() => window.open(registrationUrl, '_blank')}
+                      style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', backgroundColor: '#6750A4', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}
+                    >
+                      <ExternalLink size={16} /> Open Form
+                    </button>
+                  </div>
+                </div>
+
+                {/* Attendance Scanner Card */}
+                <div style={{ backgroundColor: '#FFFFFF', padding: '32px', borderRadius: '24px', border: '1px solid #E2E8F0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <QrCode size={64} color="#6750A4" style={{ marginBottom: '16px' }} />
+                  <h4 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '8px' }}>Student Attendance Scanner</h4>
+                  <p style={{ fontSize: '14px', color: '#64748B', maxWidth: '340px', marginBottom: '24px' }}>
+                    Point camera at student ID pass to record live check-in and check-out timestamps.
+                  </p>
+                  <button style={{ padding: '14px 28px', backgroundColor: '#6750A4', color: '#FFFFFF', borderRadius: '12px', border: 'none', fontWeight: 800, cursor: 'pointer' }}>
+                    Start Live Scanner
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -591,7 +634,12 @@ export const OwnerPortal: React.FC<OwnerPortalProps> = ({ accountData, onLogout,
             </p>
 
             <div style={{ padding: '16px', backgroundColor: '#FFFFFF', borderRadius: '16px', border: '2px dashed #6750A4', display: 'inline-block', marginBottom: '20px' }}>
-              <img src={qrImageUrl} alt="Registration QR Code" style={{ width: '220px', height: '220px', display: 'block' }} />
+              <img
+                src={primaryQrImageUrl}
+                onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackQrImageUrl; }}
+                alt="Registration QR Code"
+                style={{ width: '220px', height: '220px', display: 'block' }}
+              />
             </div>
 
             <div style={{ backgroundColor: '#F8FAFC', padding: '12px', borderRadius: '10px', fontSize: '12px', color: '#475569', wordBreak: 'break-all', marginBottom: '20px', border: '1px solid #E2E8F0' }}>
