@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Vidyara Library SaaS",
+    "slug": "vidyara-library-saas",
+    "version": "2.5.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#6750A4"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.vidyara.saas"
+    }
+  }
+}
